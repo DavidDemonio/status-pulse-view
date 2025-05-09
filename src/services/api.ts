@@ -76,6 +76,20 @@ export const generateNodeToken = async () => {
   }
 };
 
+// MySQL connection test
+export const testDbConnection = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/system/db-test`);
+    return response.data;
+  } catch (error) {
+    console.error('Database connection test failed:', error);
+    return {
+      success: false,
+      message: 'Failed to connect to database. Please check your configuration.'
+    };
+  }
+};
+
 // Metrics API calls
 export const fetchMetrics = async (nodeId: string, metric: string, period: string = '24h') => {
   try {

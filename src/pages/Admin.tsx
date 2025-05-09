@@ -9,8 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { fetchNodes } from '@/services/api';
-import { Check, Copy, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { fetchNodes, generateNodeToken, removeNode, testDbConnection } from '@/services/api';
+import { Check, Copy, Database, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { 
   Table, 
   TableBody, 
@@ -21,11 +21,6 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 
-// Dummy function to generate a client token
-const generateClientToken = () => {
-  return 'sp_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-};
-
 const Admin = () => {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -33,6 +28,7 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [newNodeToken, setNewNodeToken] = useState('');
   const [copied, setCopied] = useState(false);
+  const [testingDb, setTestingDb] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -55,13 +51,22 @@ const Admin = () => {
     return <Navigate to="/login" />;
   }
 
-  const handleGenerateToken = () => {
-    const token = generateClientToken();
-    setNewNodeToken(token);
-    toast({
-      title: "Token generated",
-      description: "Copy this token to connect a new node."
-    });
+  const handleGenerateToken = async () => {
+    try {
+      const token = await generateNodeToken();
+      setNewNodeToken(token);
+      toast({
+        title: "Token generated",
+        description: "Copy this token to connect a new node."
+      });
+    } catch (error) {
+      console.error('Failed to generate token:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate node token.",
+        variant: "destructive"
+      });
+    }
   };
 
   const copyToken = async () => {
@@ -82,19 +87,82 @@ const Admin = () => {
     }
   };
 
-  const removeNode = (nodeId) => {
-    setNodes((prev) => prev.filter((node) => node.id !== nodeId));
-    toast({
-      title: "Node removed",
-      description: "The node has been removed from your dashboard."
-    });
+  const handleRemoveNode = async (nodeId) => {
+    try {
+      await removeNode(nodeId);
+      setNodes((prev) => prev.filter((node) => node.id !== nodeId));
+      toast({
+        title: "Node removed",
+        description: "The node has been successfully removed from your dashboard."
+      });
+    } catch (error) {
+      console.error('Failed to remove node:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove the node.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleRefreshNodes = async () => {
+    setLoading(true);
+    try {
+      const nodesData = await fetchNodes();
+      setNodes(nodesData);
+      toast({
+        title: "Nodes refreshed",
+        description: "The node list has been updated."
+      });
+    } catch (error) {
+      console.error('Failed to refresh nodes:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh node list.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTestDbConnection = async () => {
+    setTestingDb(true);
+    try {
+      const result = await testDbConnection();
+      toast({
+        title: result.success ? "Database connection successful" : "Database connection failed",
+        description: result.message,
+        variant: result.success ? "default" : "destructive"
+      });
+    } catch (error) {
+      console.error('Failed to test database connection:', error);
+      toast({
+        title: "Error",
+        description: "Failed to test database connection.",
+        variant: "destructive"
+      });
+    } finally {
+      setTestingDb(false);
+    }
   };
 
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-1 container mx-auto py-6 px-4">
-        <h1 className="text-3xl font-bold mb-6">Admin Panel</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Admin Panel</h1>
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2" 
+            onClick={handleTestDbConnection}
+            disabled={testingDb}
+          >
+            <Database className={`h-4 w-4 ${testingDb ? 'animate-pulse' : ''}`} />
+            {testingDb ? 'Testing...' : 'Test MySQL Connection'}
+          </Button>
+        </div>
         
         <Tabs defaultValue="nodes" className="w-full">
           <TabsList className="mb-6">
@@ -151,8 +219,8 @@ const Admin = () => {
               <div className="bg-card rounded-lg border">
                 <div className="flex justify-between items-center p-6 pb-4">
                   <h2 className="text-xl font-semibold">Connected Nodes</h2>
-                  <Button variant="outline" className="flex items-center gap-1">
-                    <RefreshCw className="h-4 w-4" />
+                  <Button variant="outline" className="flex items-center gap-1" onClick={handleRefreshNodes}>
+                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     Refresh
                   </Button>
                 </div>
@@ -199,7 +267,7 @@ const Admin = () => {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => removeNode(node.id)}
+                                onClick={() => handleRemoveNode(node.id)}
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
