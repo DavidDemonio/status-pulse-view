@@ -33,6 +33,15 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 262 83% 58%;
 
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222.2 84% 4.9%;
+    --sidebar-primary: 262 83% 58%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 262 83% 88%;
+    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 262 83% 58%;
+
     --radius: 0.75rem;
   }
 
@@ -64,6 +73,15 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 262.1 83.3% 57.8%;
+
+    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 262 83% 58%;
+    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
+    --sidebar-accent: 262 83% 28%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 262.1 83.3% 57.8%;
   }
 
   * {
@@ -72,37 +90,14 @@
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Force background and text color for development visibility */
+  html {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 }
 
-.gradient-bg {
-  @apply bg-gradient-to-r from-primary to-secondary;
-}
-
-.card-gradient {
-  @apply bg-gradient-to-br from-card to-secondary/5 backdrop-blur-sm;
-}
-
-.glass-card {
-  @apply bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-lg;
-}
-
-.status-card {
-  @apply rounded-xl p-6 transition-all hover:shadow-md;
-}
-
-.status-healthy {
-  @apply bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400;
-}
-
-.status-warning {
-  @apply bg-yellow-500/10 border border-yellow-500/30 text-yellow-700 dark:text-yellow-400;
-}
-
-.status-critical {
-  @apply bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-400;
-}
-
-.status-inactive {
-  @apply bg-gray-500/10 border border-gray-500/30 text-gray-700 dark:text-gray-400;
-}
+/* ... keep existing code (gradient styles, card styles, glass card and status cards) */
