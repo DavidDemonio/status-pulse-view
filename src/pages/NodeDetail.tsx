@@ -1,10 +1,9 @@
-
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { fetchNodeDetails, fetchMetrics } from '@/services/api';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Cpu, HardDrive, Memory, ArrowLeft, Wifi, RefreshCw } from 'lucide-react';
+import { Cpu, HardDrive, Server, ArrowLeft, Wifi, RefreshCw } from 'lucide-react';
 import ResourceCard from '@/components/ResourceCard';
 import MetricsChart from '@/components/MetricsChart';
 import { Button } from '@/components/ui/button';

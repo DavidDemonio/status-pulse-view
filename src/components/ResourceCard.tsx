@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
-import { Progress } from "@/components/ui/progress";
+import { Progress } from "@/components/ui/enhanced-progress";
 
 interface ResourceCardProps {
   title: string;

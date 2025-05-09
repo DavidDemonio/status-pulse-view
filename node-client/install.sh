@@ -1,11 +1,11 @@
 
 #!/bin/bash
 
-# StatusPulse Node Client - Installation Script
+# ZenoScale Node Client - Installation Script
 # This script installs the node monitoring client
 
 echo "╔══════════════════════════════════════════╗"
-echo "║       StatusPulse Node Client            ║"
+echo "║       ZenoScale Node Client              ║"
 echo "║           Installation                   ║"
 echo "╚══════════════════════════════════════════╝"
 

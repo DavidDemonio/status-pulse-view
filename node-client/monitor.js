@@ -1,6 +1,6 @@
 
 /**
- * StatusPulse Node Client
+ * ZenoScale Node Client
  * This script collects system metrics and sends them to the main server
  */
 
@@ -8,10 +8,11 @@ const os = require('os');
 const fs = require('fs');
 const { exec } = require('child_process');
 const axios = require('axios');
+const si = require('systeminformation');
 
 // Default configuration
 const config = {
-  serverUrl: 'http://localhost:8080/api/metrics',
+  serverUrl: 'http://localhost:8282/api/metrics',
   interval: 60, // seconds
   token: '',
   log: true
@@ -45,135 +46,95 @@ function log(message) {
 }
 
 // Get CPU usage
-function getCpuUsage() {
-  return new Promise((resolve) => {
-    const startMeasure = os.cpus();
-
-    // Wait for 100ms to get a more accurate measurement
-    setTimeout(() => {
-      const endMeasure = os.cpus();
-      
-      let idleDifference = 0;
-      let totalDifference = 0;
-      
-      for (let i = 0; i < startMeasure.length; i++) {
-        const startCpu = startMeasure[i].times;
-        const endCpu = endMeasure[i].times;
-        
-        const startTotal = Object.values(startCpu).reduce((acc, val) => acc + val, 0);
-        const endTotal = Object.values(endCpu).reduce((acc, val) => acc + val, 0);
-        
-        idleDifference += (endCpu.idle - startCpu.idle);
-        totalDifference += (endTotal - startTotal);
-      }
-      
-      const cpuUsage = 100 - (100 * idleDifference / totalDifference);
-      resolve(cpuUsage);
-    }, 100);
-  });
+async function getCpuUsage() {
+  try {
+    const data = await si.currentLoad();
+    return data.currentLoad;
+  } catch (error) {
+    log(`Error getting CPU usage: ${error.message}`);
+    return 0;
+  }
 }
 
 // Get memory usage
-function getMemoryUsage() {
-  const totalMem = os.totalmem();
-  const freeMem = os.freemem();
-  const usedMem = totalMem - freeMem;
-  
-  return {
-    total: totalMem,
-    free: freeMem,
-    used: usedMem,
-    percentage: (usedMem / totalMem) * 100
-  };
+async function getMemoryUsage() {
+  try {
+    const data = await si.mem();
+    return {
+      total: data.total,
+      free: data.free,
+      used: data.used,
+      percentage: (data.used / data.total) * 100
+    };
+  } catch (error) {
+    log(`Error getting memory usage: ${error.message}`);
+    return {
+      total: 0,
+      free: 0,
+      used: 0,
+      percentage: 0
+    };
+  }
 }
 
 // Get disk usage
-function getDiskUsage() {
-  return new Promise((resolve, reject) => {
-    // Different command for different OS
-    const command = process.platform === 'win32' 
-      ? 'wmic logicaldisk get size,freespace,caption' 
-      : 'df -h /';
-
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      if (process.platform === 'win32') {
-        // Parse Windows output
-        const lines = stdout.trim().split('\r\n').slice(1);
-        const disks = [];
-        
-        lines.forEach(line => {
-          const parts = line.trim().split(/\s+/);
-          if (parts.length >= 3) {
-            const caption = parts[0];
-            const freeSpace = parseInt(parts[1], 10);
-            const size = parseInt(parts[2], 10);
-            
-            if (size > 0) {
-              disks.push({
-                drive: caption,
-                total: size,
-                free: freeSpace,
-                used: size - freeSpace,
-                percentage: ((size - freeSpace) / size) * 100
-              });
-            }
-          }
-        });
-        
-        resolve(disks);
-      } else {
-        // Parse Linux/Mac output
-        const lines = stdout.trim().split('\n').slice(1);
-        const disks = [];
-        
-        lines.forEach(line => {
-          const parts = line.trim().split(/\s+/);
-          if (parts.length >= 6) {
-            const usage = parseInt(parts[4].replace('%', ''), 10);
-            
-            disks.push({
-              filesystem: parts[0],
-              total: parts[1],
-              used: parts[2],
-              available: parts[3],
-              percentage: usage
-            });
-          }
-        });
-        
-        resolve(disks);
-      }
-    });
-  });
+async function getDiskUsage() {
+  try {
+    const data = await si.fsSize();
+    return data.map(disk => ({
+      drive: disk.fs,
+      type: disk.type,
+      total: disk.size,
+      free: disk.available,
+      used: disk.size - disk.available,
+      percentage: disk.use
+    }));
+  } catch (error) {
+    log(`Error getting disk usage: ${error.message}`);
+    return [];
+  }
 }
 
-// Get network usage (this is a simplified approximation)
-function getNetworkUsage() {
-  return new Promise((resolve) => {
-    const networkInterfaces = os.networkInterfaces();
+// Get network usage
+let lastNetworkStats = null;
+let lastNetworkTime = Date.now();
+
+async function getNetworkUsage() {
+  try {
+    const data = await si.networkStats();
+    const now = Date.now();
     const interfaces = [];
-    
-    for (const [name, netInterface] of Object.entries(networkInterfaces)) {
-      const ipv4Interface = netInterface.find(iface => iface.family === 'IPv4');
-      if (ipv4Interface) {
-        interfaces.push({
-          name,
-          address: ipv4Interface.address,
-          netmask: ipv4Interface.netmask,
-          mac: ipv4Interface.mac
-        });
+
+    if (lastNetworkStats) {
+      const timeElapsed = (now - lastNetworkTime) / 1000; // Time in seconds
+      
+      for (let i = 0; i < data.length; i++) {
+        const current = data[i];
+        const previous = lastNetworkStats.find(p => p.iface === current.iface);
+        
+        if (previous) {
+          const downloadSpeed = (current.rx_bytes - previous.rx_bytes) / timeElapsed; // bytes per second
+          const uploadSpeed = (current.tx_bytes - previous.tx_bytes) / timeElapsed; // bytes per second
+          
+          interfaces.push({
+            name: current.iface,
+            downloadSpeed: downloadSpeed / 1048576, // Convert to Mbps (bytes to megabits)
+            uploadSpeed: uploadSpeed / 1048576, // Convert to Mbps (bytes to megabits)
+            rx_bytes: current.rx_bytes,
+            tx_bytes: current.tx_bytes
+          });
+        }
       }
     }
     
-    // In a real implementation, you would track bytes sent/received
-    // Since OS doesn't provide direct API for bandwidth, we'd use a library or external tool
-    resolve(interfaces);
-  });
+    lastNetworkStats = data;
+    lastNetworkTime = now;
+    
+    return interfaces;
+  } catch (error) {
+    log(`Error getting network usage: ${error.message}`);
+    return [];
+  }
 }
 
 // Collect all system metrics
@@ -182,7 +143,7 @@ async function collectMetrics() {
     const hostname = os.hostname();
     const platform = os.platform();
     const cpuUsage = await getCpuUsage();
-    const memoryUsage = getMemoryUsage();
+    const memoryUsage = await getMemoryUsage();
     const diskUsage = await getDiskUsage();
     const networkInterfaces = await getNetworkUsage();
     const uptime = os.uptime();
@@ -223,11 +184,18 @@ async function sendMetrics(metrics) {
 
 // Main monitoring function
 async function monitor() {
-  log('Starting monitoring...');
+  log('Starting ZenoScale Node Client...');
   log(`Server: ${config.serverUrl}`);
   log(`Interval: ${config.interval} seconds`);
   
-  // First run immediately
+  // Collect network metrics initially to establish baseline
+  await getNetworkUsage();
+  
+  // Wait one interval to get meaningful network metrics
+  log('Collecting initial metrics...');
+  await new Promise(resolve => setTimeout(resolve, 5000));
+  
+  // First run
   let metrics = await collectMetrics();
   if (metrics) {
     await sendMetrics(metrics);

@@ -1,11 +1,10 @@
-
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import StatsSummary from '@/components/StatsSummary';
 import NodeStatusCard from '@/components/NodeStatusCard';
 import { useState, useEffect } from 'react';
 import { fetchNodes } from '@/services/api';
-import { Cpu, HardDrive, Memory, RefreshCw, Wifi } from 'lucide-react';
+import { Cpu, HardDrive, Server, RefreshCw, Wifi } from 'lucide-react';
 import ResourceCard from '@/components/ResourceCard';
 import MetricsChart from '@/components/MetricsChart';
 import { Link } from 'react-router-dom';
@@ -128,7 +127,7 @@ const Index = () => {
                 <ResourceCard 
                   title="Memory Usage" 
                   value={58} 
-                  icon={<Memory className="h-5 w-5" />} 
+                  icon={<Server className="h-5 w-5" />} 
                 />
                 <ResourceCard 
                   title="Disk Usage" 

@@ -1,44 +1,30 @@
 
 #!/bin/bash
 
-# StatusPulse Node Client - Start Script
-# This script starts the node monitoring client
+# ZenoScale Node Client - Start Script
+# This script starts the monitoring client
 
 echo "╔══════════════════════════════════════════╗"
-echo "║       StatusPulse Node Client            ║"
+echo "║       ZenoScale Node Client              ║"
 echo "╚══════════════════════════════════════════╝"
 
 # Check if token is provided
-TOKEN=""
-if [ -f ".token" ]; then
-    TOKEN=$(cat .token)
+if [ -z "$1" ]; then
+    echo "Error: No token provided"
+    echo "Usage: ./start.sh <token> [server_url] [interval]"
+    echo "Example: ./start.sh zs_abc123 http://yourdomain.com:8282/api/metrics 30"
+    exit 1
 fi
 
-if [ -z "$TOKEN" ]; then
-    echo "No token found. Please enter your client token:"
-    read TOKEN
-    
-    # Save token for future use
-    echo $TOKEN > .token
-    echo "Token saved."
-fi
+TOKEN=$1
+SERVER=${2:-"http://localhost:8282/api/metrics"}
+INTERVAL=${3:-60}
 
-echo "Starting node monitoring client..."
-node monitor.js --token=$TOKEN &
-CLIENT_PID=$!
+echo "Starting node monitoring..."
+echo "Server: $SERVER"
+echo "Interval: $INTERVAL seconds"
 
-echo "Client is running! Monitoring data is being sent to the main server."
+# Run the monitor script
+node monitor.js --token=$TOKEN --server=$SERVER --interval=$INTERVAL
 
-# Create a function to handle cleanup on script termination
-function cleanup() {
-    echo "Shutting down client..."
-    kill $CLIENT_PID
-    exit 0
-}
-
-# Register the cleanup function to be called on script termination
-trap cleanup INT TERM
-
-# Keep the script running until Ctrl+C
-echo "Press Ctrl+C to stop the client"
-wait
+exit 0

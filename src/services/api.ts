@@ -1,133 +1,110 @@
 
-// This file would connect to your real backend API
-// For now, we'll simulate data for the frontend
-
+import axios from 'axios';
 import { NodeData } from '@/components/NodeStatusCard';
 
-// Simulated nodes data
+const API_URL = 'http://localhost:8282/api';
+
+// Authentication API calls
+export const loginUser = async (email: string, password: string) => {
+  try {
+    const response = await axios.post(`${API_URL}/auth/login`, { email, password });
+    return response.data;
+  } catch (error) {
+    throw new Error('Authentication failed. Please check your credentials.');
+  }
+};
+
+export const registerAdmin = async (username: string, email: string, password: string) => {
+  try {
+    const response = await axios.post(`${API_URL}/auth/register`, { 
+      username, 
+      email, 
+      password,
+      role: 'admin'
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error('Registration failed. Please try again.');
+  }
+};
+
+// Nodes API calls
 export const fetchNodes = async (): Promise<NodeData[]> => {
-  // In a real app, this would be an API call
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  return [
-    {
-      id: '1',
-      name: 'Web Server',
-      ip: '192.168.1.100',
-      status: 'healthy',
-      cpu: 25,
-      ram: 40,
-      disk: 32,
-      network: {
-        up: 5.2,
-        down: 10.6
-      },
-      uptime: '7d 12h 45m',
-      lastSeen: '1m ago'
-    },
-    {
-      id: '2',
-      name: 'Database Server',
-      ip: '192.168.1.101',
-      status: 'warning',
-      cpu: 72,
-      ram: 85,
-      disk: 67,
-      network: {
-        up: 2.7,
-        down: 4.3
-      },
-      uptime: '14d 6h 22m',
-      lastSeen: '1m ago'
-    },
-    {
-      id: '3',
-      name: 'Backup Server',
-      ip: '192.168.1.102',
-      status: 'healthy',
-      cpu: 12,
-      ram: 30,
-      disk: 45,
-      network: {
-        up: 1.2,
-        down: 1.8
-      },
-      uptime: '30d 8h 15m',
-      lastSeen: '1m ago'
-    },
-    {
-      id: '4',
-      name: 'Cache Server',
-      ip: '192.168.1.103',
-      status: 'critical',
-      cpu: 98,
-      ram: 94,
-      disk: 88,
-      network: {
-        up: 0.5,
-        down: 0.2
-      },
-      uptime: '2d 3h 10m',
-      lastSeen: '1m ago'
-    },
-    {
-      id: '5',
-      name: 'Load Balancer',
-      ip: '192.168.1.104',
-      status: 'inactive',
-      cpu: 0,
-      ram: 0,
-      disk: 23,
-      network: {
-        up: 0,
-        down: 0
-      },
-      uptime: '-',
-      lastSeen: '2h ago'
-    }
-  ];
+  try {
+    const response = await axios.get(`${API_URL}/nodes`);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch nodes:', error);
+    throw new Error('Failed to load node data from server');
+  }
 };
 
 export const fetchNodeDetails = async (nodeId: string): Promise<NodeData | null> => {
-  const nodes = await fetchNodes();
-  return nodes.find(node => node.id === nodeId) || null;
+  try {
+    const response = await axios.get(`${API_URL}/nodes/${nodeId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to fetch node ${nodeId} details:`, error);
+    return null;
+  }
 };
 
-// Simulated metrics data for charts
-export const fetchMetrics = async (nodeId: string, metric: string, period: string = '24h') => {
-  // In a real app, this would be an API call with proper params
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // Generate some sample data points for the chart
-  const dataPoints = 24;
-  const data = [];
-  
-  for (let i = 0; i < dataPoints; i++) {
-    const time = `${i}:00`;
-    
-    if (metric === 'cpu') {
-      data.push({
-        time,
-        value: Math.floor(Math.random() * 50) + 10, // Random value between 10-60
-      });
-    } else if (metric === 'ram') {
-      data.push({
-        time,
-        value: Math.floor(Math.random() * 40) + 30, // Random value between 30-70
-      });
-    } else if (metric === 'disk') {
-      data.push({
-        time,
-        value: Math.floor(Math.random() * 30) + 20, // Random value between 20-50
-      });
-    } else if (metric === 'network') {
-      data.push({
-        time,
-        download: Math.floor(Math.random() * 15) + 5, // Random value between 5-20
-        upload: Math.floor(Math.random() * 5) + 1, // Random value between 1-6
-      });
-    }
+export const addNode = async (name: string, token: string) => {
+  try {
+    const response = await axios.post(`${API_URL}/nodes`, { name, token });
+    return response.data;
+  } catch (error) {
+    throw new Error('Failed to add node. Please try again.');
   }
-  
-  return data;
+};
+
+export const removeNode = async (nodeId: string) => {
+  try {
+    await axios.delete(`${API_URL}/nodes/${nodeId}`);
+    return true;
+  } catch (error) {
+    throw new Error('Failed to remove node. Please try again.');
+  }
+};
+
+export const generateNodeToken = async () => {
+  try {
+    const response = await axios.post(`${API_URL}/nodes/token`);
+    return response.data.token;
+  } catch (error) {
+    throw new Error('Failed to generate token. Please try again.');
+  }
+};
+
+// Metrics API calls
+export const fetchMetrics = async (nodeId: string, metric: string, period: string = '24h') => {
+  try {
+    const response = await axios.get(
+      `${API_URL}/metrics/${nodeId}?type=${metric}&period=${period}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to fetch ${metric} metrics for node ${nodeId}:`, error);
+    return [];
+  }
+};
+
+// System settings
+export const updateSystemSettings = async (settings: Record<string, any>) => {
+  try {
+    const response = await axios.put(`${API_URL}/settings`, settings);
+    return response.data;
+  } catch (error) {
+    throw new Error('Failed to update system settings. Please try again.');
+  }
+};
+
+export const fetchSystemSettings = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/settings`);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch system settings:', error);
+    throw new Error('Failed to load system settings from server');
+  }
 };
