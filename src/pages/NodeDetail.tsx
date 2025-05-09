@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { fetchNodeDetails, fetchMetrics } from '@/services/api';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Cpu, HardDrive, Server, ArrowLeft, Wifi, RefreshCw } from 'lucide-react';
+import { Cpu, HardDrive, Server, ArrowLeft, Wifi, RefreshCw, MemoryStick } from 'lucide-react';
 import ResourceCard from '@/components/ResourceCard';
 import MetricsChart from '@/components/MetricsChart';
 import { Button } from '@/components/ui/button';
@@ -170,7 +170,7 @@ const NodeDetail = () => {
             <ResourceCard 
               title="Memory Usage" 
               value={node?.ram || 0} 
-              icon={<Memory className="h-5 w-5" />} 
+              icon={<MemoryStick className="h-5 w-5" />} 
             />
             <ResourceCard 
               title="Disk Usage" 

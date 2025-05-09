@@ -15,9 +15,89 @@ if ! command -v node &> /dev/null; then
     sudo apt-get install -y nodejs
 fi
 
-# Check if MySQL is installed
-if ! command -v mysql &> /dev/null; then
-    echo "MySQL is not installed. Installing MySQL..."
+# MySQL Configuration
+echo "╔══════════════════════════════════════════╗"
+echo "║       MySQL Configuration                ║"
+echo "╚══════════════════════════════════════════╝"
+
+# Prompt for MySQL settings
+read -p "Enter MySQL host [localhost]: " DB_HOST
+DB_HOST=${DB_HOST:-localhost}
+
+read -p "Enter MySQL port [3306]: " DB_PORT
+DB_PORT=${DB_PORT:-3306}
+
+read -p "Enter MySQL database name [zenoScale]: " DB_NAME
+DB_NAME=${DB_NAME:-zenoScale}
+
+read -p "Enter MySQL username [zenoScale]: " DB_USER
+DB_USER=${DB_USER:-zenoScale}
+
+read -s -p "Enter MySQL password [zenoScale]: " DB_PASS
+DB_PASS=${DB_PASS:-zenoScale}
+echo ""
+
+read -s -p "Enter MySQL root password (for database creation, leave empty if not set): " ROOT_PASS
+echo ""
+
+# Test MySQL connection with root
+if [ -z "$ROOT_PASS" ]; then
+    MYSQL_ROOT_CONN="mysql -u root"
+else
+    MYSQL_ROOT_CONN="mysql -u root -p$ROOT_PASS"
+fi
+
+echo "Testing MySQL root connection..."
+if ! $MYSQL_ROOT_CONN -e "SELECT 'Root connection successful';" > /dev/null 2>&1; then
+    echo "Error: Cannot connect to MySQL as root. Please check your credentials."
+    echo "Would you like to continue anyway? (y/n)"
+    read CONTINUE
+    if [[ ! "$CONTINUE" =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+else
+    echo "Root connection successful. Creating database and user..."
+    
+    # Create database and user
+    $MYSQL_ROOT_CONN <<EOF
+CREATE DATABASE IF NOT EXISTS $DB_NAME;
+CREATE USER IF NOT EXISTS '$DB_USER'@'$DB_HOST' IDENTIFIED BY '$DB_PASS';
+GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'$DB_HOST';
+FLUSH PRIVILEGES;
+EOF
+    
+    # Test if database is accessible with new credentials
+    if mysql -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASS $DB_NAME -e "SELECT 'Database connection successful';" > /dev/null 2>&1; then
+        echo "Database connection successful!"
+    else
+        echo "Warning: Could not connect to MySQL with the provided credentials."
+        echo "Would you like to continue anyway? (y/n)"
+        read CONTINUE
+        if [[ ! "$CONTINUE" =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    fi
+    
+    # Import schema
+    echo "Importing database schema..."
+    mysql -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASS $DB_NAME < sql/init.sql
+fi
+
+# Create .env file for server
+echo "Creating server configuration..."
+cat > server/.env <<EOF
+PORT=8282
+DB_HOST=$DB_HOST
+DB_PORT=$DB_PORT
+DB_USER=$DB_USER
+DB_PASS=$DB_PASS
+DB_NAME=$DB_NAME
+JWT_SECRET=zenoScale_jwt_secret_$(date +%s)
+EOF
+
+# Check if MySQL is installed locally
+if ! command -v mysql &> /dev/null && [ "$DB_HOST" = "localhost" ]; then
+    echo "MySQL is not installed locally. Installing MySQL..."
     sudo apt-get update
     sudo apt-get install -y mysql-server
     
@@ -25,31 +105,6 @@ if ! command -v mysql &> /dev/null; then
     echo "Securing MySQL installation..."
     sudo mysql_secure_installation
 fi
-
-# Create MySQL database and user
-echo "Setting up MySQL database..."
-echo "Please enter MySQL root password (leave empty if no password is set):"
-read -s rootpass
-
-# Set password option based on whether a password was provided
-if [ -z "$rootpass" ]; then
-    MYSQL_PWD_OPTION=""
-else
-    MYSQL_PWD_OPTION="-p$rootpass"
-fi
-
-# Create database and user
-mysql -uroot $MYSQL_PWD_OPTION <<EOF
-CREATE DATABASE IF NOT EXISTS zenoScale;
-CREATE USER IF NOT EXISTS 'zenoScale'@'localhost' IDENTIFIED BY 'zenoScale';
-GRANT ALL PRIVILEGES ON zenoScale.* TO 'zenoScale'@'localhost';
-FLUSH PRIVILEGES;
-EOF
-
-# Import schema
-mysql -uroot $MYSQL_PWD_OPTION zenoScale < sql/init.sql
-
-echo "Database setup completed!"
 
 # Install frontend dependencies
 echo "Installing frontend dependencies..."
@@ -71,21 +126,6 @@ cd ..
 # Build application
 echo "Building application for production..."
 npm run build
-
-# Configure server ports
-echo "Configuring server ports..."
-# Create .env file for server
-cat > server/.env <<EOF
-PORT=8282
-DB_HOST=localhost
-DB_USER=zenoScale
-DB_PASS=zenoScale
-DB_NAME=zenoScale
-JWT_SECRET=zenoScale_jwt_secret_$(date +%s)
-EOF
-
-# Update configuration for web server
-sed -i 's/port: 8080/port: 8181/g' vite.config.ts
 
 echo "╔══════════════════════════════════════════╗"
 echo "║       Installation Complete!             ║"

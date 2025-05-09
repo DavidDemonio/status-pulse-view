@@ -16,12 +16,25 @@ if ! command -v node &> /dev/null; then
     sudo apt-get install -y nodejs
 fi
 
+# Check npm version and update if necessary
+NPM_VERSION=$(npm -v)
+echo "NPM version: $NPM_VERSION"
+
 # Install dependencies
 echo "Installing client dependencies..."
 npm install
 
+echo "Testing system information gathering..."
+# Test if systeminformation works
+if node -e "const si = require('systeminformation'); si.cpu().then(data => console.log('CPU test successful:', data.manufacturer));" > /dev/null 2>&1; then
+    echo "System information library is working correctly."
+else
+    echo "Warning: The system information library might not be working correctly on this system."
+fi
+
 echo "Installation complete!"
 echo "To start the client, run:"
-echo "./start.sh"
+echo "./start.sh <token> [server_url] [interval]"
+echo "Example: ./start.sh zs_abc123 http://yourdomain.com:8282/api/metrics 30"
 
 exit 0
